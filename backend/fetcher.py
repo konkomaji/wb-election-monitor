@@ -252,18 +252,37 @@ def fetch_rss(feed: dict, ac_name: str = "") -> list[dict]:
 # 4. Fetch all sources for one AC
 # ──────────────────────────────────────────────────────────
 
-def fetch_all_for_ac(ac_name: str) -> list[dict]:
+def fetch_all_for_ac(ac_name: str, pre_fetched_rss: list[dict] = None) -> list[dict]:
     """Aggregate all sources for a single constituency."""
     results: list[dict] = []
 
+    # 1. Google News (AC specific)
     results.extend(fetch_google_news(ac_name))
-    time.sleep(0.3)   # polite delay
 
+    # 2. YouTube (AC specific)
+    if not os.getenv("GITHUB_ACTIONS"):
+        time.sleep(0.3)
     results.extend(fetch_youtube(ac_name))
-    time.sleep(0.3)
 
-    for feed in RSS_FEEDS:
-        results.extend(fetch_rss(feed, ac_name))
-        time.sleep(0.2)
+    # 3. RSS Feeds
+    if pre_fetched_rss:
+        # Filter the pre-fetched global pool for this specific AC
+        ac_low = ac_name.lower()
+        count = 0
+        for item in pre_fetched_rss:
+            if ac_low in item["raw_text"].lower():
+                # Create a specific copy for this AC
+                ac_item = item.copy()
+                ac_item["ac_name"] = ac_name
+                results.append(ac_item)
+                count += 1
+        logger.info("RSS (Cached) → %s: %d items", ac_name, count)
+    else:
+        # Fallback to direct fetching (Legacy/Local mode)
+        from config import RSS_FEEDS
+        for feed in RSS_FEEDS:
+            results.extend(fetch_rss(feed, ac_name))
+            if not os.getenv("GITHUB_ACTIONS"):
+                time.sleep(0.2)
 
     return results

@@ -54,11 +54,11 @@ def enrich(items: list[dict]) -> list[dict]:
 # Single-AC pipeline
 # ──────────────────────────────────────────────────────────
 
-def run_ac_pipeline(ac_name: str) -> None:
+def run_ac_pipeline(ac_name: str, pre_fetched_rss: list[dict] = None) -> None:
     start = time.perf_counter()
     logger.info("▶ Processing AC: %s", ac_name)
 
-    raw_items = fetch_all_for_ac(ac_name)
+    raw_items = fetch_all_for_ac(ac_name, pre_fetched_rss)
     enriched  = enrich(raw_items)
     stored, _ = store_to_supabase(enriched)
 
@@ -83,18 +83,31 @@ def run_full_cycle() -> None:
     cycle_start = datetime.now(timezone.utc).isoformat()
     logger.info("═══ Cycle start %s (%d ACs) ═══", cycle_start, len(ALL_AC))
 
+    # Pre-fetch all RSS feeds once to avoid hammering servers and save time
+    from config import RSS_FEEDS
+    from fetcher import fetch_rss
+    global_rss_data = []
+    for feed in RSS_FEEDS:
+        try:
+            logger.info("Pre-fetching RSS: %s", feed['name'])
+            global_rss_data.extend(fetch_rss(feed)) # Fetch without AC filter
+        except Exception as e:
+            logger.warning("Failed to pre-fetch %s: %s", feed['name'], e)
+
     ac_list = list(ALL_AC)
     random.shuffle(ac_list)
 
     for idx, ac in enumerate(ac_list, 1):
         logger.info("[%d/%d]", idx, len(ac_list))
         try:
-            run_ac_pipeline(ac)
+            # Pass pre-fetched RSS data to the pipeline
+            run_ac_pipeline(ac, global_rss_data)
         except Exception as exc:
             logger.error("Error in AC %s: %s", ac, exc, exc_info=True)
 
-        # Polite inter-AC delay: 1–2 seconds
-        time.sleep(random.uniform(1.0, 2.0))
+        # Skip sleep if running in GitHub Actions to avoid timeout
+        if not os.getenv("GITHUB_ACTIONS"):
+            time.sleep(random.uniform(1.0, 2.0))
 
     logger.info("═══ Cycle complete ═══")
 
@@ -105,16 +118,16 @@ def run_full_cycle() -> None:
 
 if __name__ == "__main__":
     import sys
+    import os
     logger.info("WBAE2026 Phase 1 Monitor starting …")
 
-    # Run immediately on startup
-    run_full_cycle()
-
     if "--single-cycle" in sys.argv:
+        run_full_cycle()
         logger.info("Single cycle complete. Exiting.")
         sys.exit(0)
 
-    # Schedule every N minutes
+    # Normal mode (Local/Server)
+    run_full_cycle()
     schedule.every(FETCH_INTERVAL_MINUTES).minutes.do(run_full_cycle)
 
     logger.info(
