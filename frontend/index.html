@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WBAE2026 · Political Intelligence Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inconsolata:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ── DESIGN SYSTEM ── */
+:root {
+  --bg:          #06090f;
+  --surface:     #0d1117;
+  --border:      #1e2736;
+  --border-hi:   #2e3f57;
+  --accent:      #00d4ff;
+  --accent-dim:  #0a3a45;
+  --green:       #00ff9d;
+  --red:         #ff3b5c;
+  --yellow:      #f5c542;
+  --tmc:         #00c851;
+  --bjp:         #ff6b2b;
+  --others:      #a78bfa;
+  --text:        #e2e8f0;
+  --muted:       #64748b;
+  --positive:    #00ff9d;
+  --negative:    #ff3b5c;
+  --neutral:     #94a3b8;
+  --font-head:   'Rajdhani', sans-serif;
+  --font-mono:   'Inconsolata', monospace;
+  --font-data:   'Space Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 999; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px
+  );
+}
+
+/* ── GRID BACKGROUND ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,17,23,0.95);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.logo {
+  font-family: var(--font-head);
+  font-size: 22px; font-weight: 700; letter-spacing: 3px;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(0,212,255,0.5);
+}
+.logo span { color: var(--text); font-weight: 400; }
+
+.status-bar {
+  display: flex; align-items: center; gap: 20px;
+}
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+.status-text { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+
+.clock {
+  font-family: var(--font-data); font-size: 13px; color: var(--accent);
+  letter-spacing: 2px;
+}
+
+/* ── MAIN LAYOUT ── */
+.shell {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: calc(100vh - 53px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  grid-row: 1 / -1;
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: rgba(13,17,23,0.7);
+}
+
+.section-label {
+  font-family: var(--font-head); font-size: 11px; letter-spacing: 3px;
+  color: var(--muted); text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* AC Selector */
+.ac-search-wrap { position: relative; }
+.ac-search {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono); font-size: 13px;
+  padding: 10px 36px 10px 12px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color .2s;
+}
+.ac-search:focus { border-color: var(--accent); }
+.ac-search-icon {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: 14px; pointer-events: none;
+}
+
+.ac-list {
+  max-height: 280px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface);
+}
+.ac-list::-webkit-scrollbar { width: 4px; }
+.ac-list::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+.ac-item {
+  padding: 8px 12px; cursor: pointer; font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background .15s, color .15s;
+}
+.ac-item:hover   { background: var(--accent-dim); color: var(--accent); }
+.ac-item.active  {
+  background: var(--accent-dim); color: var(--accent);
+  border-left: 3px solid var(--accent);
+}
+.ac-badge {
+  font-family: var(--font-data); font-size: 10px;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--border); color: var(--muted);
+}
+.ac-badge.tmc    { background: rgba(0,200,81,0.15); color: var(--tmc); }
+.ac-badge.bjp    { background: rgba(255,107,43,0.15); color: var(--bjp); }
+
+/* Party legend in sidebar */
+.party-legend { display: flex; flex-direction: column; gap: 8px; }
+.party-row {
+  display: flex; align-items: center; gap: 10px; font-size: 12px;
+}
+.party-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── MAIN CONTENT AREA ── */
+.main {
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden;
+}
+
+/* ── AC HEADER ── */
+.ac-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,17,23,0.5);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.ac-title {
+  font-family: var(--font-head); font-size: 32px; font-weight: 700;
+  letter-spacing: 2px; color: var(--accent);
+  text-shadow: 0 0 30px rgba(0,212,255,0.3);
+}
+.ac-subtitle { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.refresh-btn {
+  background: transparent; border: 1px solid var(--accent);
+  color: var(--accent); font-family: var(--font-mono); font-size: 12px;
+  padding: 8px 18px; cursor: pointer; border-radius: 4px;
+  transition: all .2s; letter-spacing: 1px;
+  align-self: center;
+}
+.refresh-btn:hover {
+  background: var(--accent); color: var(--bg);
+}
+.refresh-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+/* ── METRICS ROW ── */
+.metrics-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; border-bottom: 1px solid var(--border);
+  background: var(--border);
+}
+.metric-card {
+  background: var(--surface); padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.metric-label {
+  font-size: 10px; letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase;
+}
+.metric-value {
+  font-family: var(--font-data); font-size: 28px; font-weight: 700;
+  line-height: 1;
+}
+.metric-sub { font-size: 11px; color: var(--muted); }
+.metric-value.accent  { color: var(--accent); text-shadow: 0 0 20px rgba(0,212,255,0.4); }
+.metric-value.green   { color: var(--green);  text-shadow: 0 0 20px rgba(0,255,157,0.4); }
+.metric-value.red     { color: var(--red);    text-shadow: 0 0 20px rgba(255,59,92,0.4);  }
+.metric-value.yellow  { color: var(--yellow); }
+
+/* ── CONTENT GRID ── */
+.content-grid {
+  display: grid; grid-template-columns: 1fr 340px;
+  gap: 0; flex: 1;
+  overflow: hidden;
+}
+
+/* ── NEWS FEED ── */
+.feed-panel {
+  border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 0;
+}
+.feed-panel::-webkit-scrollbar { width: 4px; }
+.feed-panel::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+.feed-header {
+  position: sticky; top: 0; z-index: 10;
+  padding: 14px 20px;
+  background: rgba(13,17,23,0.97);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.feed-title { font-family: var(--font-head); font-size: 13px; letter-spacing: 2px; color: var(--muted); }
+
+/* Filter pills */
+.filter-pills { display: flex; gap: 6px; }
+.pill {
+  padding: 4px 12px; border-radius: 3px; font-size: 11px;
+  cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  transition: all .15s; font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+.pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.pill.tmc.active { border-color: var(--tmc); color: var(--tmc); background: rgba(0,200,81,0.1); }
+.pill.bjp.active { border-color: var(--bjp); color: var(--bjp); background: rgba(255,107,43,0.1); }
+
+/* News card */
+.news-card {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .15s;
+  position: relative;
+}
+.news-card:hover { background: rgba(255,255,255,0.02); }
+.news-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.news-card.tmc::before    { background: var(--tmc); }
+.news-card.bjp::before    { background: var(--bjp); }
+.news-card.others::before { background: var(--others); }
+
+.news-meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px; flex-wrap: wrap;
+}
+.tag {
+  font-family: var(--font-data); font-size: 9px; font-weight: 700;
+  letter-spacing: 1.5px; padding: 2px 7px; border-radius: 3px;
+  text-transform: uppercase;
+}
+.tag.tmc    { background: rgba(0,200,81,0.15); color: var(--tmc); border: 1px solid rgba(0,200,81,0.3); }
+.tag.bjp    { background: rgba(255,107,43,0.15); color: var(--bjp); border: 1px solid rgba(255,107,43,0.3); }
+.tag.others { background: rgba(167,139,250,0.15); color: var(--others); border: 1px solid rgba(167,139,250,0.3); }
+.tag.positive { background: rgba(0,255,157,0.1); color: var(--positive); border: 1px solid rgba(0,255,157,0.3); }
+.tag.negative { background: rgba(255,59,92,0.1);  color: var(--negative); border: 1px solid rgba(255,59,92,0.3);  }
+.tag.neutral  { background: rgba(148,163,184,0.1); color: var(--neutral);  border: 1px solid rgba(148,163,184,0.3); }
+
+.tag.src-google  { background: rgba(66,133,244,0.1); color: #4285f4; border: 1px solid rgba(66,133,244,0.3); }
+.tag.src-youtube { background: rgba(255,0,0,0.1); color: #ff4444; border: 1px solid rgba(255,0,0,0.3); }
+.tag.src-rss     { background: rgba(255,165,0,0.1); color: orange; border: 1px solid rgba(255,165,0,0.3); }
+
+.news-time { font-size: 10px; color: var(--muted); margin-left: auto; }
+.news-title {
+  font-size: 13px; line-height: 1.5;
+  color: var(--text); margin-bottom: 4px;
+  font-weight: 400;
+}
+.news-title a { color: inherit; text-decoration: none; }
+.news-title a:hover { color: var(--accent); text-decoration: underline; }
+.news-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+/* Empty / loading states */
+.state-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px; gap: 12px; color: var(--muted);
+  font-size: 13px; text-align: center;
+}
+.state-msg .icon { font-size: 32px; opacity: 0.4; }
+
+/* Spinner */
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── ANALYTICS PANEL ── */
+.analytics-panel {
+  display: flex; flex-direction: column; gap: 0;
+  overflow-y: auto; background: var(--surface);
+}
+.analytics-panel::-webkit-scrollbar { width: 4px; }
+.analytics-panel::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+.analytics-section {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.analytics-heading {
+  font-family: var(--font-head); font-size: 11px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 14px;
+}
+
+/* Bar charts */
+.bar-group { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: flex; flex-direction: column; gap: 4px; }
+.bar-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px;
+}
+.bar-label { font-family: var(--font-head); font-size: 13px; font-weight: 600; }
+.bar-count { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+.bar-track {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width .6s cubic-bezier(.16,1,.3,1);
+  width: 0%;
+}
+.bar-fill.tmc    { background: var(--tmc); box-shadow: 0 0 8px rgba(0,200,81,0.4); }
+.bar-fill.bjp    { background: var(--bjp); box-shadow: 0 0 8px rgba(255,107,43,0.4); }
+.bar-fill.others { background: var(--others); }
+.bar-fill.positive { background: var(--positive); }
+.bar-fill.negative { background: var(--negative); }
+.bar-fill.neutral  { background: var(--neutral); }
+
+/* Source breakdown */
+.source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.source-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px; text-align: center;
+}
+.source-icon { font-size: 18px; margin-bottom: 4px; }
+.source-count {
+  font-family: var(--font-data); font-size: 18px; font-weight: 700;
+  color: var(--accent);
+}
+.source-name { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+
+/* Trend sparkline */
+.trend-list { display: flex; flex-direction: column; gap: 6px; }
+.trend-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--muted);
+}
+.trend-bar {
+  flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.trend-fill {
+  height: 100%; background: var(--accent); border-radius: 2px;
+  transition: width .5s ease;
+}
+.trend-val { font-family: var(--font-data); font-size: 10px; color: var(--accent); min-width: 28px; text-align: right; }
+
+/* ── DEMO MODE banner ── */
+.demo-banner {
+  background: rgba(245,197,66,0.1); border: 1px solid rgba(245,197,66,0.3);
+  color: var(--yellow); font-size: 11px; letter-spacing: 1px;
+  padding: 8px 20px; text-align: center;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .shell { grid-template-columns: 240px 1fr; }
+  .metrics-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .content-grid { grid-template-columns: 1fr; }
+  .analytics-panel { display: none; }
+  .metrics-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ TOP BAR ═══════════ -->
+<header class="topbar">
+  <div class="logo">WBAE<span>2026</span> · PHASE 1</div>
+  <div class="status-bar">
+    <div class="pulse-dot"></div>
+    <div class="status-text">LIVE MONITORING · 150 ACs</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ═══════════ DEMO BANNER ═══════════ -->
+<div class="demo-banner" id="demoBanner">
+  ⚠ DEMO MODE — Connect Supabase to load live data. Configure SUPABASE_URL and SUPABASE_ANON_KEY in config.js
+</div>
+
+<!-- ═══════════ SHELL ═══════════ -->
+<div class="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="section-label">Assembly Constituencies</div>
+
+    <div class="ac-search-wrap">
+      <input class="ac-search" type="text" placeholder="Search AC…" id="acSearch">
+      <span class="ac-search-icon">⌕</span>
+    </div>
+
+    <div class="ac-list" id="acList">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="section-label" style="margin-top:8px">Party Legend</div>
+    <div class="party-legend">
+      <div class="party-row">
+        <div class="party-dot" style="background:var(--tmc)"></div>
+        <span>All India Trinamool Congress (TMC)</span>
+      </div>
+      <div class="party-row">
+        <div class="party-dot" style="background:var(--bjp)"></div>
+        <span>Bharatiya Janata Party (BJP)</span>
+      </div>
+      <div class="party-row">
+        <div class="party-dot" style="background:var(--others)"></div>
+        <span>Others / Independent</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- AC Header -->
+    <div class="ac-header">
+      <div>
+        <div class="ac-title" id="acTitle">SELECT AN AC</div>
+        <div class="ac-subtitle" id="acSubtitle">Choose a constituency from the sidebar to view intelligence data</div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadAC()">↻ REFRESH</button>
+    </div>
+
+    <!-- Metrics row -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Total Signals</div>
+        <div class="metric-value accent" id="metTotal">—</div>
+        <div class="metric-sub">Last 24 hours</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Dominant Party</div>
+        <div class="metric-value yellow" id="metParty">—</div>
+        <div class="metric-sub" id="metPartyPct"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Sentiment Score</div>
+        <div class="metric-value green" id="metSentiment">—</div>
+        <div class="metric-sub" id="metSentimentLabel"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Last Updated</div>
+        <div class="metric-value accent" id="metUpdated" style="font-size:16px">—</div>
+        <div class="metric-sub">Auto-refresh: 10 min</div>
+      </div>
+    </div>
+
+    <!-- Content grid -->
+    <div class="content-grid">
+
+      <!-- News feed -->
+      <section class="feed-panel">
+        <div class="feed-header">
+          <div class="feed-title">SIGNAL FEED</div>
+          <div class="filter-pills">
+            <button class="pill active" data-filter="all"   onclick="setFilter(this,'all')">ALL</button>
+            <button class="pill tmc"   data-filter="TMC"   onclick="setFilter(this,'TMC')">TMC</button>
+            <button class="pill bjp"   data-filter="BJP"   onclick="setFilter(this,'BJP')">BJP</button>
+            <button class="pill"       data-filter="Others" onclick="setFilter(this,'Others')">OTHERS</button>
+          </div>
+        </div>
+        <div id="newsFeed">
+          <div class="state-msg">
+            <div class="icon">📡</div>
+            <div>Select a constituency to load signals</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics panel -->
+      <aside class="analytics-panel">
+
+        <div class="analytics-section">
+          <div class="analytics-heading">Party Distribution</div>
+          <div class="bar-group" id="partyBars">
+            <div class="state-msg" style="padding:20px">—</div>
+          </div>
+        </div>
+
+        <div class="analytics-section">
+          <div class="analytics-heading">Sentiment Breakdown</div>
+          <div class="bar-group" id="sentimentBars">
+            <div class="state-msg" style="padding:20px">—</div>
+          </div>
+        </div>
+
+        <div class="analytics-section">
+          <div class="analytics-heading">Source Breakdown</div>
+          <div class="source-grid" id="sourceBars">
+            <div class="state-msg" style="padding:20px;grid-column:1/-1">—</div>
+          </div>
+        </div>
+
+        <div class="analytics-section">
+          <div class="analytics-heading">Narrative Trends (24h)</div>
+          <div class="trend-list" id="trendList">
+            <div class="state-msg" style="padding:20px">—</div>
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- /content-grid -->
+  </main>
+</div><!-- /shell -->
+
+<!-- ═══════════ JAVASCRIPT ═══════════ -->
+<script>
+// ──────────────────────────────────────────────────────────
+// CONFIG — Replace with real values after Supabase setup
+// ──────────────────────────────────────────────────────────
+const SUPABASE_URL  = "https://ujxxfoafkbfmwfqctamp.supabase.co";          // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqeHhmb2Fma2JmbXdmcWN0YW1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjA5OTAsImV4cCI6MjA5MjQzNjk5MH0.dYwLdtRa4HM4__pVmsb99WMAxcn1BtBh8hvv5AeUgMw";
+
+const DEMO_MODE = (SUPABASE_URL === "YOUR_SUPABASE_URL");
+
+// ──────────────────────────────────────────────────────────
+// All 150 ACs
+// ──────────────────────────────────────────────────────────
+const ALL_AC = [
+  "Mekliganj","Mathabhanga","Cooch Behar Uttar","Cooch Behar Dakshin",
+  "Sitalkuchi","Sitai","Dinhata","Natabari","Tufanganj","Kumargram",
+  "Kalchini","Alipurduars","Falakata","Madarihat","Dhupguri","Maynaguri",
+  "Jalpaiguri","Rajganj","Dabgram-Phulbari","Mal","Nagrakata","Kalimpong",
+  "Darjeeling","Kurseong","Matigara-Naxalbari","Siliguri","Phansidewa",
+  "Chopra","Islampur","Goalpokhar","Chakulia","Karandighi","Hemtabad",
+  "Kaliaganj","Raiganj","Itahar","Kushmandi","Kumarganj","Balurghat",
+  "Tapan","Gangarampur","Harirampur","Habibpur","Gazole","Chanchal",
+  "Harishchandrapur","Malatipur","Ratua","Manikchak","Maldaha",
+  "English Bazar","Mothabari","Sujapur","Baisnabnagar","Farakka",
+  "Samserganj","Suti","Jangipur","Raghunathganj","Sagardighi","Lalgola",
+  "Bhagabangola","Raninagar","Murshidabad","Nabagram","Khargram",
+  "Burwan","Kandi","Bharatpur","Rejinagar","Beldanga","Baharampur",
+  "Hariharpara","Naoda","Domkal","Jalangi","Tamluk","Panskura Purba",
+  "Panskura Paschim","Moyna","Nandakumar","Mahisadal","Haldia",
+  "Nandigram","Chandipur","Patashpur","Kanthi Uttar","Bhagabanpur",
+  "Khejuri","Kanthi Dakshin","Ramnagar","Egra","Dantan","Nayagram",
+  "Gopiballavpur","Jhargram","Keshiary","Kharagpur Sadar","Narayangarh",
+  "Sabang","Pingla","Kharagpur","Debra","Daspur","Ghatal",
+  "Chandrakona","Garbeta","Salboni","Keshpur","Medinipur","Binpur",
+  "Bandwan","Balarampur","Baghmundi","Joypur","Purulia","Manbazar",
+  "Kashipur","Para","Raghunathpur","Saltora","Chhatna","Ranibandh",
+  "Raipur","Taldangra","Bankura","Barjora","Onda","Bishnupur",
+  "Katulpur","Indas","Sonamukhi","Pandabeswar","Durgapur Purba",
+  "Durgapur Paschim","Raniganj","Jamuria","Asansol Dakshin","Asansol Uttar",
+  "Kulti","Barabani","Dubrajpur","Suri","Bolpur","Nanoor","Labpur",
+  "Sainthia","Mayureswar","Rampurhat","Hansan","Nalhati","Murarai",
+];
+
+// ──────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────
+let currentAC    = null;
+let currentFilter = "all";
+let allItems     = [];
+
+// ──────────────────────────────────────────────────────────
+// Clock
+// ──────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent =
+    now.toLocaleTimeString("en-IN", { hour12: false });
+}
+setInterval(tickClock, 1000); tickClock();
+
+// ──────────────────────────────────────────────────────────
+// Render AC list
+// ──────────────────────────────────────────────────────────
+function renderACList(filter = "") {
+  const list = document.getElementById("acList");
+  const q = filter.toLowerCase();
+  const filtered = ALL_AC.filter(a => a.toLowerCase().includes(q));
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="ac-item" style="color:var(--muted)">No match</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(ac =>
+    `<div class="ac-item${ac === currentAC ? ' active' : ''}"
+          onclick="selectAC('${ac}')">
+       ${ac}
+     </div>`
+  ).join("");
+}
+
+document.getElementById("acSearch").addEventListener("input", e => {
+  renderACList(e.target.value);
+});
+
+function selectAC(ac) {
+  currentAC = ac;
+  currentFilter = "all";
+  document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+  document.querySelector(".pill[data-filter='all']").classList.add("active");
+  renderACList(document.getElementById("acSearch").value);
+  loadAC();
+}
+
+// ──────────────────────────────────────────────────────────
+// Fetch data (Supabase or Demo)
+// ──────────────────────────────────────────────────────────
+async function fetchFromSupabase(ac) {
+  const since = new Date(Date.now() - 24*3600*1000).toISOString();
+  const url = `${SUPABASE_URL}/rest/v1/news_items`
+    + `?ac_name=eq.${encodeURIComponent(ac)}`
+    + `&timestamp=gte.${since}`
+    + `&order=timestamp.desc`
+    + `&limit=100`;
+
+  const resp = await fetch(url, {
+    headers: {
+      "apikey": SUPABASE_ANON,
+      "Authorization": `Bearer ${SUPABASE_ANON}`,
+    }
+  });
+  if (!resp.ok) throw new Error(`Supabase ${resp.status}`);
+  return resp.json();
+}
+
+function generateDemoData(ac) {
+  const parties = ["TMC","TMC","TMC","BJP","BJP","Others"];
+  const sentiments = ["Positive","Negative","Neutral","Positive","Neutral","Negative"];
+  const sources = ["google_news","youtube","rss","google_news","rss","youtube"];
+  const templates = [
+    `${ac} voters rally ahead of 2026 elections`,
+    `Development projects announced in ${ac} constituency`,
+    `TMC leader addresses ${ac} public meeting`,
+    `BJP holds booth-level campaign in ${ac}`,
+    `Controversy erupts over ${ac} local issues`,
+    `${ac}: Infrastructure work faces delay`,
+    `Political tensions rise in ${ac} ahead of polls`,
+    `Youth voters of ${ac} demand employment`,
+  ];
+  const now = Date.now();
+  return Array.from({length: 18}, (_, i) => ({
+    id: `demo-${i}`,
+    ac_name: ac,
+    title: templates[i % templates.length],
+    description: `Latest developments from ${ac} constituency. Political activity intensifies as 2026 elections approach.`,
+    url: "#",
+    party_tag: parties[i % parties.length],
+    sentiment: sentiments[i % sentiments.length],
+    sentiment_score: (Math.random() * 2 - 1).toFixed(2),
+    source: sources[i % sources.length],
+    timestamp: new Date(now - i * 3600000 * Math.random() * 8).toISOString(),
+  }));
+}
+
+// ──────────────────────────────────────────────────────────
+// Load AC
+// ──────────────────────────────────────────────────────────
+async function loadAC() {
+  if (!currentAC) return;
+
+  document.getElementById("acTitle").textContent = currentAC.toUpperCase();
+  document.getElementById("acSubtitle").textContent = "Loading signals…";
+  document.getElementById("newsFeed").innerHTML =
+    '<div class="state-msg"><div class="spinner"></div><div>Fetching signals…</div></div>';
+
+  const btn = document.getElementById("refreshBtn");
+  btn.classList.add("loading"); btn.textContent = "↻ LOADING";
+
+  try {
+    let items;
+    if (DEMO_MODE) {
+      await new Promise(r => setTimeout(r, 600));  // fake latency
+      items = generateDemoData(currentAC);
+    } else {
+      items = await fetchFromSupabase(currentAC);
+    }
+
+    allItems = items;
+    document.getElementById("acSubtitle").textContent =
+      `${items.length} signals · District: ${getDistrict(currentAC)} · Last 24 hours`;
+    updateMetrics(items);
+    renderFeed(items);
+    renderAnalytics(items);
+
+  } catch (err) {
+    document.getElementById("newsFeed").innerHTML =
+      `<div class="state-msg"><div class="icon">⚠</div><div>Error: ${err.message}</div></div>`;
+  } finally {
+    btn.classList.remove("loading"); btn.textContent = "↻ REFRESH";
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Metrics
+// ──────────────────────────────────────────────────────────
+function updateMetrics(items) {
+  document.getElementById("metTotal").textContent = items.length || "0";
+
+  // Dominant party
+  const counts = {TMC:0, BJP:0, Others:0};
+  items.forEach(i => counts[i.party_tag] = (counts[i.party_tag]||0) + 1);
+  const dom = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById("metParty").textContent = dom ? dom[0] : "—";
+  document.getElementById("metPartyPct").textContent =
+    dom && items.length ? `${Math.round(dom[1]/items.length*100)}% of signals` : "";
+
+  // Avg sentiment
+  const scores = items.map(i => parseFloat(i.sentiment_score||0)).filter(s => !isNaN(s));
+  const avg = scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length) : 0;
+  const sentEl = document.getElementById("metSentiment");
+  sentEl.textContent = avg.toFixed(2);
+  sentEl.className = "metric-value " + (avg > 0.05 ? "green" : avg < -0.05 ? "red" : "yellow");
+  document.getElementById("metSentimentLabel").textContent =
+    avg > 0.05 ? "Positive Trend" : avg < -0.05 ? "Negative Trend" : "Neutral";
+
+  // Last updated
+  const ts = items.length ? items.reduce((a,b) =>
+    new Date(a.timestamp) > new Date(b.timestamp) ? a : b).timestamp : null;
+  document.getElementById("metUpdated").textContent = ts
+    ? new Date(ts).toLocaleTimeString("en-IN", {hour12:false}) : "—";
+}
+
+// ──────────────────────────────────────────────────────────
+// Feed
+// ──────────────────────────────────────────────────────────
+function setFilter(btn, f) {
+  currentFilter = f;
+  document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  renderFeed(allItems);
+}
+
+function renderFeed(items) {
+  const filtered = currentFilter === "all"
+    ? items
+    : items.filter(i => i.party_tag === currentFilter);
+
+  if (!filtered.length) {
+    document.getElementById("newsFeed").innerHTML =
+      '<div class="state-msg"><div class="icon">📭</div><div>No signals match this filter</div></div>';
+    return;
+  }
+
+  const srcClass = s => s === "google_news" ? "src-google" : s === "youtube" ? "src-youtube" : "src-rss";
+  const srcLabel = s => s === "google_news" ? "GOOGLE" : s === "youtube" ? "YOUTUBE" : "RSS";
+
+  document.getElementById("newsFeed").innerHTML = filtered.map(item => {
+    const ts = item.timestamp ? new Date(item.timestamp) : new Date();
+    const ago = timeAgo(ts);
+    const party = (item.party_tag||"Others").toLowerCase();
+    const sent  = (item.sentiment||"Neutral").toLowerCase();
+
+    return `<div class="news-card ${party}">
+      <div class="news-meta">
+        <span class="tag ${party}">${item.party_tag||"Others"}</span>
+        <span class="tag ${sent}">${item.sentiment||"Neutral"}</span>
+        <span class="tag ${srcClass(item.source)}">${srcLabel(item.source)}</span>
+        <span class="news-time">${ago}</span>
+      </div>
+      <div class="news-title">
+        <a href="${item.url||'#'}" target="_blank" rel="noopener">${item.title||"No title"}</a>
+      </div>
+      ${item.description ? `<div class="news-desc">${truncate(item.description,140)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function timeAgo(date) {
+  const diff = Date.now() - date.getTime();
+  const m = Math.floor(diff/60000);
+  if (m < 1)  return "Just now";
+  if (m < 60) return `${m}m ago`;
+  if (m < 1440) return `${Math.floor(m/60)}h ago`;
+  return `${Math.floor(m/1440)}d ago`;
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+
+// ──────────────────────────────────────────────────────────
+// Analytics
+// ──────────────────────────────────────────────────────────
+function renderAnalytics(items) {
+  const total = items.length || 1;
+
+  // Party bars
+  const pc = {TMC:0, BJP:0, Others:0};
+  items.forEach(i => pc[i.party_tag] = (pc[i.party_tag]||0)+1);
+  document.getElementById("partyBars").innerHTML = Object.entries(pc).map(([p,c]) =>
+    `<div class="bar-row">
+      <div class="bar-label-row">
+        <span class="bar-label" style="color:var(--${p.toLowerCase()})">${p}</span>
+        <span class="bar-count">${c} signals</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill ${p.toLowerCase()}" style="width:${Math.round(c/total*100)}%"></div>
+      </div>
+    </div>`
+  ).join("");
+
+  // Sentiment bars
+  const sc = {Positive:0, Negative:0, Neutral:0};
+  items.forEach(i => sc[i.sentiment] = (sc[i.sentiment]||0)+1);
+  document.getElementById("sentimentBars").innerHTML = Object.entries(sc).map(([s,c]) =>
+    `<div class="bar-row">
+      <div class="bar-label-row">
+        <span class="bar-label" style="color:var(--${s.toLowerCase()})">${s}</span>
+        <span class="bar-count">${c}</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill ${s.toLowerCase()}" style="width:${Math.round(c/total*100)}%"></div>
+      </div>
+    </div>`
+  ).join("");
+
+  // Source cards
+  const src = {google_news:0, youtube:0, rss:0};
+  items.forEach(i => src[i.source] = (src[i.source]||0)+1);
+  const srcIcons = {google_news:"📰", youtube:"▶", rss:"📡"};
+  const srcNames = {google_news:"Google", youtube:"YouTube", rss:"RSS"};
+  document.getElementById("sourceBars").innerHTML = Object.entries(src).map(([s,c]) =>
+    `<div class="source-card">
+      <div class="source-icon">${srcIcons[s]}</div>
+      <div class="source-count">${c}</div>
+      <div class="source-name">${srcNames[s]}</div>
+    </div>`
+  ).join("");
+
+  // Trend keywords
+  const keywords = extractKeywords(items);
+  const maxKw = keywords[0]?.[1] || 1;
+  document.getElementById("trendList").innerHTML =
+    keywords.slice(0,8).map(([word, cnt]) =>
+      `<div class="trend-row">
+        <span style="min-width:90px;font-size:11px">${word}</span>
+        <div class="trend-bar">
+          <div class="trend-fill" style="width:${Math.round(cnt/maxKw*100)}%"></div>
+        </div>
+        <span class="trend-val">${cnt}</span>
+      </div>`
+    ).join("") || '<div class="state-msg" style="padding:0">No data</div>';
+}
+
+function extractKeywords(items) {
+  const stopwords = new Set([
+    "the","a","an","in","of","to","and","is","are","for","on","at",
+    "with","by","from","that","this","was","has","have","be","been",
+    "as","or","not","it","its","will","also","can","अब","के","में",
+  ]);
+  const freq = {};
+  items.forEach(item => {
+    const words = (item.title + " " + (item.description||""))
+      .toLowerCase().replace(/[^a-z\u0900-\u097f\s]/g,"").split(/\s+/);
+    words.forEach(w => {
+      if (w.length > 3 && !stopwords.has(w)) {
+        freq[w] = (freq[w]||0) + 1;
+      }
+    });
+  });
+  return Object.entries(freq).sort((a,b) => b[1]-a[1]);
+}
+
+// ──────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────
+const districtMap = {
+  "Mekliganj":"Cooch Behar","Mathabhanga":"Cooch Behar","Siliguri":"Darjeeling",
+  "Darjeeling":"Darjeeling","Jalpaiguri":"Jalpaiguri","Raiganj":"Uttar Dinajpur",
+  "Balurghat":"Dakshin Dinajpur","English Bazar":"Malda","Baharampur":"Murshidabad",
+  "Nandigram":"Purba Medinipur","Haldia":"Purba Medinipur","Jhargram":"Jhargram",
+  "Kharagpur":"Paschim Medinipur","Purulia":"Purulia","Bankura":"Bankura",
+  "Asansol Uttar":"Paschim Bardhaman","Durgapur Purba":"Paschim Bardhaman",
+  "Bolpur":"Birbhum","Suri":"Birbhum",
+};
+function getDistrict(ac) {
+  return districtMap[ac] || "West Bengal";
+}
+
+// ──────────────────────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────────────────────
+renderACList();
+
+// Hide demo banner if not in demo mode
+if (!DEMO_MODE) {
+  document.getElementById("demoBanner").style.display = "none";
+}
+
+// Auto-select first AC to show demo immediately
+selectAC(ALL_AC[0]);
+</script>
+
+</body>
+</html>
