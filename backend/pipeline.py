@@ -93,8 +93,8 @@ def run_full_cycle() -> None:
         except Exception as exc:
             logger.error("Error in AC %s: %s", ac, exc, exc_info=True)
 
-        # Polite inter-AC delay: 2–4 seconds
-        time.sleep(random.uniform(2.0, 4.0))
+        # Polite inter-AC delay: 1–2 seconds
+        time.sleep(random.uniform(1.0, 2.0))
 
     logger.info("═══ Cycle complete ═══")
 

@@ -14,6 +14,7 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - run: python backend/pipeline.py --single-cycle
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        timeout-minutes: 8
+        timeout-minutes: 20
