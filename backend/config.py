@@ -14,6 +14,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")   # backend writes
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")         # frontend reads
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")             # optional for v3 API
 
 # ──────────────────────────────────────────────────────────
 # Scheduler
@@ -89,33 +90,18 @@ NEGATIVE_KEYWORDS = [
 # ──────────────────────────────────────────────────────────
 RSS_FEEDS = [
     {
-        "name": "Anandabazar Patrika",
-        "url": "https://www.anandabazar.com/rss/state.xml",
-        "language": "bn",
-    },
-    {
-        "name": "Ei Samay",
-        "url": "https://eisamay.com/rss/state",
-        "language": "bn",
-    },
-    {
         "name": "Sangbad Pratidin",
         "url": "https://www.sangbadpratidin.in/feed/",
         "language": "bn",
     },
     {
-        "name": "Bartaman Patrika",
-        "url": "https://bartamanpatrika.com/feed",
-        "language": "bn",
-    },
-    {
-        "name": "NDTV Bengal",
-        "url": "https://feeds.feedburner.com/ndtvindia",
+        "name": "Times of India WB",
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/2128936835.cms",
         "language": "en",
     },
     {
-        "name": "The Telegraph Calcutta",
-        "url": "https://www.telegraphindia.com/rss/state.xml",
+        "name": "NDTV India",
+        "url": "https://feeds.feedburner.com/ndtvindia",
         "language": "en",
     },
     {
@@ -138,5 +124,5 @@ GOOGLE_NEWS_RSS_TEMPLATE = (
 REQUEST_TIMEOUT = 15       # seconds
 MAX_ITEMS_PER_AC = 10      # max news items per AC per fetch cycle
 USER_AGENT = (
-    "Mozilla/5.0 (compatible; WBAE2026Monitor/1.0; +https://wbae2026.pages.dev)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
