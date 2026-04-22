@@ -9,7 +9,7 @@
 
 ## 🏛 Project Overview
 
-WBAE2026 is a specialized intelligence dashboard designed to monitor political signals across **150 Assembly Constituencies (ACs)** in West Bengal. Phase 1 focuses on automated data ingestion, sentiment classification, and real-time visualization of political narratives ahead of the 2026 elections.
+WBAE2026 is a specialized intelligence dashboard designed to monitor political signals across **152 Assembly Constituencies (ACs)** in West Bengal. Phase 1 focuses on automated data ingestion, sentiment classification, and real-time visualization of political narratives ahead of the 2026 elections.
 
 ### 🚀 Key Features
 - **Multi-Source Ingestion**: Aggregates data from Google News RSS, YouTube Atom feeds, and major Bengali/National RSS outlets (Anandabazar, Ei Samay, Sangbad Pratidin, etc.).
